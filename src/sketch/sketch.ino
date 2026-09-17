@@ -1,5 +1,7 @@
+#include "classifier_head.hpp"
 #include "features.hpp"
 #include "global.hpp"
+#include "led.hpp"
 #include "microfone.hpp"
 
 namespace {
@@ -10,12 +12,16 @@ constexpr size_t PASSO_JANELA = 160;
 
 Microfone microfone;
 FeatureExtractor extractor(TAXA_AMOSTRAGEM);
+Led ledVermelho(PIN_LED_VERMELHO);
+Led ledVerde(PIN_LED_VERDE);
 int16_t bufferCircular[TAMANHO_BUFFER_CIRCULAR];
 volatile size_t indiceEscrita = 0;
 volatile size_t indiceLeitura = 0;
 TaskHandle_t tarefaCaptura = nullptr;
 TaskHandle_t tarefaFeatures = nullptr;
+TaskHandle_t tarefaDeteccao = nullptr;
 SemaphoreHandle_t mutexFeatures = nullptr;
+QueueHandle_t filaFeatures = nullptr;
 AudioFeatures featuresAtuais = {};
 
 size_t amostrasDisponiveis() {
@@ -68,6 +74,29 @@ void tarefaExtracaoFeatures(void *) {
 				featuresAtuais = novasFeatures;
 				xSemaphoreGive(mutexFeatures);
 			}
+			if (filaFeatures != nullptr) {
+				xQueueSend(filaFeatures, &novasFeatures, portMAX_DELAY);
+			}
+		}
+	}
+}
+
+void tarefaDeteccaoAnomalia(void *) {
+	AudioFeatures features;
+	float probabilidades[CLASSIFIER_OUTPUT_DIM];
+	for (;;) {
+		if (xQueueReceive(filaFeatures, &features, portMAX_DELAY) == pdTRUE) {
+			ClassifierHead::inferir(features, probabilidades);
+			const bool anomalia = probabilidades[1] >= CLASSIFIER_THRESHOLD;
+			if (anomalia) {
+				ledVermelho.ligar();
+				ledVerde.desligar();
+			} else {
+				ledVermelho.desligar();
+				ledVerde.ligar();
+			}
+			Serial.printf("crying_baby=%.4f | dog=%.4f -> %s\n",
+				probabilidades[0], probabilidades[1], anomalia ? "ALERTA" : "NORMAL");
 		}
 	}
 }
@@ -75,14 +104,21 @@ void tarefaExtracaoFeatures(void *) {
 
 void setup() {
 	Serial.begin(115200);
+	ledVermelho.iniciar();
+	ledVerde.iniciar();
+	ledVerde.ligar();
+	ledVermelho.desligar();
 	if (!microfone.iniciar(TAXA_AMOSTRAGEM)) {
 		Serial.println("Falha ao iniciar o microfone I2S");
 		return;
 	}
 
 	mutexFeatures = xSemaphoreCreateMutex();
+	filaFeatures = xQueueCreate(4, sizeof(AudioFeatures));
 	xTaskCreatePinnedToCore(
 		tarefaExtracaoFeatures, "features", 8192, nullptr, 2, &tarefaFeatures, 1);
+	xTaskCreatePinnedToCore(
+		tarefaDeteccaoAnomalia, "detector", 8192, nullptr, 1, &tarefaDeteccao, 1);
 	xTaskCreatePinnedToCore(
 		tarefaCapturaAudio, "captura", 4096, nullptr, 3, &tarefaCaptura, 1);
 }

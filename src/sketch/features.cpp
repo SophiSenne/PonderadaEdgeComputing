@@ -3,59 +3,59 @@
 #include <math.h>
 
 namespace {
-constexpr float PI_LOCAL = 3.14159265358979323846f;
-constexpr size_t QUANTIDADE_FILTROS_MEL = 26;
-constexpr float EPSILON = 1.0e-12f;
+	constexpr float PI_LOCAL = 3.14159265358979323846f;
+	constexpr size_t QUANTIDADE_FILTROS_MEL = 26;
+	constexpr float EPSILON = 1.0e-12f;
 
-float hzParaMel(float frequencia) {
-	return 1127.0f * logf(1.0f + frequencia / 700.0f);
-}
-
-float melParaHz(float mel) {
-	return 700.0f * (expf(mel / 1127.0f) - 1.0f);
-}
-
-void fft(float *real, float *imaginario, size_t tamanho) {
-	for (size_t i = 1, j = 0; i < tamanho; ++i) {
-		size_t bit = tamanho >> 1;
-		for (; (j & bit) != 0; bit >>= 1) {
-			j ^= bit;
-		}
-		j ^= bit;
-		if (i < j) {
-			const float realTemp = real[i];
-			real[i] = real[j];
-			real[j] = realTemp;
-			const float imaginarioTemp = imaginario[i];
-			imaginario[i] = imaginario[j];
-			imaginario[j] = imaginarioTemp;
-		}
+	float hzParaMel(float frequencia) {
+		return 1127.0f * logf(1.0f + frequencia / 700.0f);
 	}
 
-	for (size_t tamanhoBloco = 2; tamanhoBloco <= tamanho; tamanhoBloco <<= 1) {
-		const float angulo = -2.0f * PI_LOCAL / static_cast<float>(tamanhoBloco);
-		const float passoReal = cosf(angulo);
-		const float passoImaginario = sinf(angulo);
-		for (size_t inicio = 0; inicio < tamanho; inicio += tamanhoBloco) {
-			float fatorReal = 1.0f;
-			float fatorImaginario = 0.0f;
-			const size_t metade = tamanhoBloco / 2;
-			for (size_t i = 0; i < metade; ++i) {
-				const size_t par = inicio + i;
-				const size_t impar = par + metade;
-				const float produtoReal = fatorReal * real[impar] - fatorImaginario * imaginario[impar];
-				const float produtoImaginario = fatorReal * imaginario[impar] + fatorImaginario * real[impar];
-				real[impar] = real[par] - produtoReal;
-				imaginario[impar] = imaginario[par] - produtoImaginario;
-				real[par] += produtoReal;
-				imaginario[par] += produtoImaginario;
-				const float novoFatorReal = fatorReal * passoReal - fatorImaginario * passoImaginario;
-				fatorImaginario = fatorReal * passoImaginario + fatorImaginario * passoReal;
-				fatorReal = novoFatorReal;
+	float melParaHz(float mel) {
+		return 700.0f * (expf(mel / 1127.0f) - 1.0f);
+	}
+
+	void fft(float *real, float *imaginario, size_t tamanho) {
+		for (size_t i = 1, j = 0; i < tamanho; ++i) {
+			size_t bit = tamanho >> 1;
+			for (; (j & bit) != 0; bit >>= 1) {
+				j ^= bit;
+			}
+			j ^= bit;
+			if (i < j) {
+				const float realTemp = real[i];
+				real[i] = real[j];
+				real[j] = realTemp;
+				const float imaginarioTemp = imaginario[i];
+				imaginario[i] = imaginario[j];
+				imaginario[j] = imaginarioTemp;
+			}
+		}
+
+		for (size_t tamanhoBloco = 2; tamanhoBloco <= tamanho; tamanhoBloco <<= 1) {
+			const float angulo = -2.0f * PI_LOCAL / static_cast<float>(tamanhoBloco);
+			const float passoReal = cosf(angulo);
+			const float passoImaginario = sinf(angulo);
+			for (size_t inicio = 0; inicio < tamanho; inicio += tamanhoBloco) {
+				float fatorReal = 1.0f;
+				float fatorImaginario = 0.0f;
+				const size_t metade = tamanhoBloco / 2;
+				for (size_t i = 0; i < metade; ++i) {
+					const size_t par = inicio + i;
+					const size_t impar = par + metade;
+					const float produtoReal = fatorReal * real[impar] - fatorImaginario * imaginario[impar];
+					const float produtoImaginario = fatorReal * imaginario[impar] + fatorImaginario * real[impar];
+					real[impar] = real[par] - produtoReal;
+					imaginario[impar] = imaginario[par] - produtoImaginario;
+					real[par] += produtoReal;
+					imaginario[par] += produtoImaginario;
+					const float novoFatorReal = fatorReal * passoReal - fatorImaginario * passoImaginario;
+					fatorImaginario = fatorReal * passoImaginario + fatorImaginario * passoReal;
+					fatorReal = novoFatorReal;
+				}
 			}
 		}
 	}
-}
 }
 
 FeatureExtractor::FeatureExtractor(uint32_t taxaAmostragem)
