@@ -1,0 +1,11 @@
+{
+    "model": "MIT/ast-finetuned-audioset-10-10-0.4593",
+    "task": "dog_bark_detection",
+    "sample_rate": 16000,
+    "num_mel_bins": 128,
+    "max_length": 1024,
+    "threshold": 0.5,
+    "input_name": "input_values",
+    "output_name": "bark_probability",
+    "quantization": "dynamic_int8"
+}
