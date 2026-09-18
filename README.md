@@ -31,3 +31,7 @@ Para o desenvolvimento dessa atividade segui os seguintes passos:
 3. Leitura de áudio e extração de features, também documentado em [Firmware.md](./docs/Firmware.md);
 4. Seleção do modelo e análise do ONNX conforme documentado em [TreinamentoModelo.md](./docs/TreinamentoModelo.md);
 5. Integração RTOS assim como descrito em [RTOS.md](./docs/RTOS.md).
+
+## Modelos
+
+Os arquivos .onnx podem ser acessados [aqui](https://drive.google.com/drive/folders/1EmpfFopQ1ySJdd6ZSA6xMGXmVehAg92K?usp=sharing).
