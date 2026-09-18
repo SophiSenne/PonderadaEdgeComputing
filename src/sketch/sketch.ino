@@ -42,6 +42,16 @@ void inserirAmostras(const int32_t *amostras, size_t quantidade) {
 	}
 }
 
+void atualizarIndicadorDeteccao(float probabilidadeLatido) {
+	if (probabilidadeLatido >= CLASSIFIER_THRESHOLD) {
+		ledVermelho.ligar();
+		ledVerde.desligar();
+	} else {
+		ledVermelho.desligar();
+		ledVerde.ligar();
+	}
+}
+
 bool extrairJanela(int16_t *janela) {
 	if (amostrasDisponiveis() < TAMANHO_JANELA) {
 		return false;
@@ -87,16 +97,15 @@ void tarefaDeteccaoAnomalia(void *) {
 	for (;;) {
 		if (xQueueReceive(filaFeatures, &features, portMAX_DELAY) == pdTRUE) {
 			ClassifierHead::inferir(features, probabilidades);
-			const bool anomalia = probabilidades[1] >= CLASSIFIER_THRESHOLD;
-			if (anomalia) {
-				ledVermelho.ligar();
-				ledVerde.desligar();
-			} else {
-				ledVermelho.desligar();
-				ledVerde.ligar();
-			}
-			Serial.printf("crying_baby=%.4f | dog=%.4f -> %s\n",
-				probabilidades[0], probabilidades[1], anomalia ? "ALERTA" : "NORMAL");
+
+			const float probabilidadeNaoLatido = probabilidades[0];
+			const float probabilidadeLatido = probabilidades[1];
+			const bool eLatido = probabilidadeLatido >= CLASSIFIER_THRESHOLD;
+
+			atualizarIndicadorDeteccao(probabilidadeLatido);
+
+			Serial.printf("sem_latido=%.4f | latido=%.4f -> %s\n",
+				probabilidadeNaoLatido, probabilidadeLatido, eLatido ? "LATIDO" : "NORMAL");
 		}
 	}
 }
