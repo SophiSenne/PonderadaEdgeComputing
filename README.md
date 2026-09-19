@@ -4,7 +4,7 @@ Este projeto implementa um sistema embarcado para detecção de anomalias acúst
 
 ## Objetivo do sistema
 
-Considerando o objetivo da atividade acima descrito, esse projeto implementa a detecção de latidos de cachorro: caso haja latidos o led vermelho é aceso, caso não haja, o led verde. Desse modo, é possível monitorar o comportamento dos cachorros mesmo sem um ser humano presente.
+Considerando o objetivo da atividade acima descrito, esse projeto implementa a detecção de latidos de cachorro: caso haja latidos o led vermelho é aceso, caso não haja, o led verde. Desse modo, é possível monitorar o comportamento dos cachorros mesmo sem um ser humano presente e saber se tem algo de errado com os pets.
 
 ## Estrutura do projeto
 
@@ -30,7 +30,9 @@ Para o desenvolvimento dessa atividade segui os seguintes passos:
 2. Criação das classes para utilização dos sensores conforme documentado em [Firmware.md](./docs/Firmware.md);
 3. Leitura de áudio e extração de features, também documentado em [Firmware.md](./docs/Firmware.md);
 4. Seleção do modelo e análise do ONNX conforme documentado em [TreinamentoModelo.md](./docs/TreinamentoModelo.md);
-5. Integração RTOS assim como descrito em [RTOS.md](./docs/RTOS.md).
+5. Implementação do modelo no firmware de acordo com [Firmware.md](./docs/Firmware.md);
+6. Integração RTOS assim como descrito em [RTOS.md](./docs/RTOS.md);
+7. Testes detalhados em [Testes.md](./docs/Testes.md).
 
 ## Modelos
 
