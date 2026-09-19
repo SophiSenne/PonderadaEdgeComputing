@@ -9,7 +9,7 @@ constexpr size_t CLASSIFIER_INPUT_DIM = 16;
 constexpr size_t CLASSIFIER_HIDDEN_1 = 32;
 constexpr size_t CLASSIFIER_HIDDEN_2 = 16;
 constexpr size_t CLASSIFIER_OUTPUT_DIM = 2;
-constexpr float CLASSIFIER_THRESHOLD = 0.5f;
+constexpr float CLASSIFIER_THRESHOLD = 0.7f;
 
 // Parâmetros de normalização (z-score) aprendidos no treino, na mesma ordem de AudioFeatures
 // (rms, rmsDb, centroideEspectral, mfcc[0..12]).

@@ -23,6 +23,10 @@ TaskHandle_t tarefaDeteccao = nullptr;
 SemaphoreHandle_t mutexFeatures = nullptr;
 QueueHandle_t filaFeatures = nullptr;
 AudioFeatures featuresAtuais = {};
+volatile uint32_t contadorJanelasProcessadas = 0;
+volatile uint32_t tempoInferenciaAcumuladoUs = 0;
+volatile uint32_t ultimoTempoInferenciaUs = 0;
+volatile uint32_t ultimasDeteccoes = 0;
 
 size_t amostrasDisponiveis() {
 	const size_t escrita = indiceEscrita;
@@ -96,7 +100,14 @@ void tarefaDeteccaoAnomalia(void *) {
 	float probabilidades[CLASSIFIER_OUTPUT_DIM];
 	for (;;) {
 		if (xQueueReceive(filaFeatures, &features, portMAX_DELAY) == pdTRUE) {
+			const uint32_t inicioInferenciaUs = micros();
 			ClassifierHead::inferir(features, probabilidades);
+			const uint32_t fimInferenciaUs = micros();
+			const uint32_t tempoInferenciaUs = fimInferenciaUs - inicioInferenciaUs;
+			ultimoTempoInferenciaUs = tempoInferenciaUs;
+			tempoInferenciaAcumuladoUs += tempoInferenciaUs;
+			contadorJanelasProcessadas++;
+			ultimasDeteccoes++;
 
 			const float probabilidadeNaoLatido = probabilidades[0];
 			const float probabilidadeLatido = probabilidades[1];
@@ -104,8 +115,16 @@ void tarefaDeteccaoAnomalia(void *) {
 
 			atualizarIndicadorDeteccao(probabilidadeLatido);
 
-			Serial.printf("sem_latido=%.4f | latido=%.4f -> %s\n",
-				probabilidadeNaoLatido, probabilidadeLatido, eLatido ? "LATIDO" : "NORMAL");
+			if (ultimasDeteccoes >= 10) {
+				const float tempoMedioMs = (tempoInferenciaAcumuladoUs / static_cast<float>(contadorJanelasProcessadas)) / 1000.0f;
+				Serial.printf("metrics|ja_processadas=%lu | media_inferencia_ms=%.3f | ultima_inferencia_us=%lu | prob_latido=%.4f | status=%s\n",
+					static_cast<unsigned long>(contadorJanelasProcessadas),
+					tempoMedioMs,
+					static_cast<unsigned long>(ultimoTempoInferenciaUs),
+					probabilidadeLatido,
+					eLatido ? "LATIDO" : "NORMAL");
+				ultimasDeteccoes = 0;
+			}
 		}
 	}
 }
@@ -137,8 +156,10 @@ void loop() {
 	if (mutexFeatures != nullptr && xSemaphoreTake(mutexFeatures, pdMS_TO_TICKS(10)) == pdTRUE) {
 		features = featuresAtuais;
 		xSemaphoreGive(mutexFeatures);
-		Serial.printf("RMS: %.4f | dB: %.2f | Centroid: %.2f Hz | MFCC0: %.2f\n",
-			features.rms, features.rmsDb, features.centroideEspectral, features.mfcc[0]);
+		Serial.printf("features|RMS=%.4f | dB=%.2f | centroid=%.2fHz | MFCC0=%.2f | inferencia_ultima_us=%lu | janelas_total=%lu\n",
+			features.rms, features.rmsDb, features.centroideEspectral, features.mfcc[0],
+			static_cast<unsigned long>(ultimoTempoInferenciaUs),
+			static_cast<unsigned long>(contadorJanelasProcessadas));
 	}
 	delay(500);
 }
