@@ -17,6 +17,10 @@ Se tudo fosse executado em um único fluxo sequencial, a leitura do microfone po
 
 Esse tipo de arquitetura é ideal para projetos embarcados com processamento contínuo de sinais, pois torna o sistema mais organizado, previsível e escalável.
 
+## Diagrama da arquitetura RTOS
+
+![Arquitetura RTOS do detector de latido](./rtos_diagrama.svg)
+
 ## FreeRTOS
 
 O FreeRTOS é um RTOS de código aberto, leve e muito utilizado em sistemas embarcados. Ele oferece recursos como:

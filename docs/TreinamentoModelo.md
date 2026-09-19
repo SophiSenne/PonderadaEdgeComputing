@@ -260,4 +260,3 @@ Esse processo foi o que tornou o projeto viável e funcional no contexto de comp
 - `src/sketch/features.cpp` — extração real das features no firmware;
 - `src/sketch/classifier_head.hpp` — implementação embarcada do classificador;
 - `src/testes/teste_onnx.py` — benchmark de inferência em Python.
-
