@@ -21,6 +21,7 @@ TaskHandle_t tarefaCaptura = nullptr;
 TaskHandle_t tarefaFeatures = nullptr;
 TaskHandle_t tarefaDeteccao = nullptr;
 SemaphoreHandle_t mutexFeatures = nullptr;
+SemaphoreHandle_t mutexBuffer = nullptr;
 QueueHandle_t filaFeatures = nullptr;
 AudioFeatures featuresAtuais = {};
 volatile uint32_t contadorJanelasProcessadas = 0;
@@ -29,12 +30,26 @@ volatile uint32_t ultimoTempoInferenciaUs = 0;
 volatile uint32_t ultimasDeteccoes = 0;
 
 size_t amostrasDisponiveis() {
+	if (mutexBuffer == nullptr) {
+		return 0;
+	}
+	if (xSemaphoreTake(mutexBuffer, pdMS_TO_TICKS(5)) != pdTRUE) {
+		return 0;
+	}
 	const size_t escrita = indiceEscrita;
 	const size_t leitura = indiceLeitura;
-	return escrita >= leitura ? escrita - leitura : TAMANHO_BUFFER_CIRCULAR - leitura + escrita;
+	const size_t disponiveis = escrita >= leitura ? escrita - leitura : TAMANHO_BUFFER_CIRCULAR - leitura + escrita;
+	xSemaphoreGive(mutexBuffer);
+	return disponiveis;
 }
 
 void inserirAmostras(const int32_t *amostras, size_t quantidade) {
+	if (mutexBuffer == nullptr || amostras == nullptr || quantidade == 0) {
+		return;
+	}
+	if (xSemaphoreTake(mutexBuffer, pdMS_TO_TICKS(5)) != pdTRUE) {
+		return;
+	}
 	for (size_t i = 0; i < quantidade; ++i) {
 		const int32_t valor = amostras[i] >> 8;
 		const size_t proximo = (indiceEscrita + 1) % TAMANHO_BUFFER_CIRCULAR;
@@ -44,6 +59,7 @@ void inserirAmostras(const int32_t *amostras, size_t quantidade) {
 		bufferCircular[indiceEscrita] = static_cast<int16_t>(constrain(valor, -32768L, 32767L));
 		indiceEscrita = proximo;
 	}
+	xSemaphoreGive(mutexBuffer);
 }
 
 void atualizarIndicadorDeteccao(float probabilidadeLatido) {
@@ -57,13 +73,24 @@ void atualizarIndicadorDeteccao(float probabilidadeLatido) {
 }
 
 bool extrairJanela(int16_t *janela) {
-	if (amostrasDisponiveis() < TAMANHO_JANELA) {
+	if (janela == nullptr || mutexBuffer == nullptr) {
+		return false;
+	}
+	if (xSemaphoreTake(mutexBuffer, pdMS_TO_TICKS(5)) != pdTRUE) {
+		return false;
+	}
+	const size_t escrita = indiceEscrita;
+	const size_t leitura = indiceLeitura;
+	const size_t disponiveis = escrita >= leitura ? escrita - leitura : TAMANHO_BUFFER_CIRCULAR - leitura + escrita;
+	if (disponiveis < TAMANHO_JANELA) {
+		xSemaphoreGive(mutexBuffer);
 		return false;
 	}
 	for (size_t i = 0; i < TAMANHO_JANELA; ++i) {
-		janela[i] = bufferCircular[(indiceLeitura + i) % TAMANHO_BUFFER_CIRCULAR];
+		janela[i] = bufferCircular[(leitura + i) % TAMANHO_BUFFER_CIRCULAR];
 	}
-	indiceLeitura = (indiceLeitura + PASSO_JANELA) % TAMANHO_BUFFER_CIRCULAR;
+	indiceLeitura = (leitura + PASSO_JANELA) % TAMANHO_BUFFER_CIRCULAR;
+	xSemaphoreGive(mutexBuffer);
 	return true;
 }
 
@@ -142,6 +169,7 @@ void setup() {
 	}
 
 	mutexFeatures = xSemaphoreCreateMutex();
+	mutexBuffer = xSemaphoreCreateMutex();
 	filaFeatures = xQueueCreate(4, sizeof(AudioFeatures));
 	xTaskCreatePinnedToCore(
 		tarefaExtracaoFeatures, "features", 8192, nullptr, 2, &tarefaFeatures, 1);
