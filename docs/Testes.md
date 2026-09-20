@@ -111,10 +111,27 @@ Foram registrados vídeos dos testes para complementar a validação visual do c
 - Teste com miado: https://drive.google.com/file/d/1Bg6Q_7ANWBtRa8-uyrN5vtNorK0my4VS/view?usp=sharing
 - Teste com latido: https://drive.google.com/file/d/1Twr65I6Mfl-C8AlyrAb-sXZoEuyKPxch/view?usp=sharing
 
-## 6. Considerações finais
+## 6. Mapeamento de latência por etapa no hardware real
+
+Além da métrica isolada de inferência, o firmware passou a emitir uma linha de diagnóstico por janela para medir cada trecho do pipeline embarcado:
+
+```bash
+python src/testes/medir_latencia_pipeline.py --log serial_dump.txt
+```
+
+A linha enviada pelo ESP32 tem o formato:
+
+```text
+latencia|captura_us=120 | buffer_us=35 | extracao_us=420 | fila_us=8 | inferencia_us=53 | led_us=12 | total_us=648 | prob_latido=0.7715 | status=LATIDO
+```
+
+O script interpreta esse log, calcula média, mínima, máxima e desvio por etapa, além de resumir a distribuição de status (`NORMAL`/`LATIDO`).
+
+## 7. Considerações finais
 
 Os testes realizados indicam que:
 
 - a inferência ONNX é rápida o suficiente para operação em tempo real;
 - a detecção depende diretamente do tipo de áudio e da robustez dos dados no ambiente;
-- a característica mais crítica não é a latência do modelo, mas a estabilidade da decisão final frente a ruído e variações acústicas.
+- a característica mais crítica não é a latência do modelo, mas a estabilidade da decisão final frente a ruído e variações acústicas;
+- o pipeline embarcado agora registra latência por etapa, permitindo comparar o custo real de captura, buffer, extração, fila, inferência e LED no hardware.
