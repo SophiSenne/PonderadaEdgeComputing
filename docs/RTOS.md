@@ -19,7 +19,7 @@ Esse tipo de arquitetura é ideal para projetos embarcados com processamento con
 
 ## Diagrama da arquitetura RTOS
 
-![Arquitetura RTOS do detector de latido](./rtos_diagrama.svg)
+![Arquitetura RTOS do detector de latido](./img/rtos_diagrama.svg)
 
 ## FreeRTOS
 
