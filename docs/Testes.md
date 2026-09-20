@@ -104,34 +104,59 @@ metrics|ja_processadas=5560 | media_inferencia_ms=0.056 | ultima_inferencia_us=5
 
 A execução em tempo real mostrou que a inferência é extremamente leve do ponto de vista computacional no ESP32. A principal observação é a variabilidade da probabilidade por janela, o que sugere que a decisão final pode ser melhorada com técnicas adicionais, como média móvel, limiar adaptativo ou acúmulo de eventos de detecção.
 
-## 5. Evidências em vídeo
+## 5. Teste 3: latência por etapa do pipeline embarcado
+
+### Objetivo
+
+Validar a latência do sistema em hardware em todos os blocos do pipeline de detecção de latido, do momento em que o microfone adquire o sinal até a atualização do estado do LED. A medição foi organizada em seis etapas principais:
+
+- captura do áudio no microfone;
+- armazenamento no buffer circular;
+- extração de features;
+- enfileiramento das features para inferência;
+- inferência do classificador;
+- atualização da saída visual no LED.
+
+### Instrumentação do firmware
+
+O firmware foi instrumentado para registrar, a cada janela processada, uma linha de diagnóstico no formato:
+
+```text
+latencia|captura_us=120 | buffer_us=35 | extracao_us=420 | fila_us=8 | inferencia_us=53 | led_us=12 | total_us=648 | prob_latido=0.7715 | status=LATIDO
+```
+
+Essa estrutura permite associar cada latência a um evento específico do pipeline e correlacioná-la com o resultado da classificação (`NORMAL` ou `LATIDO`).
+
+### Procedimento de medição
+
+A metodologia de coleta foi definida com base no fluxo real do firmware:
+
+1. o bloco de áudio é lido do microfone;
+2. os dados são enviados para o buffer circular;
+3. a janela é extraída do buffer;
+4. as features são calculadas;
+5. a estrutura é enviada para a fila de processamento;
+6. o classificador realiza a inferência;
+7. o LED é atualizado conforme a probabilidade de latido;
+8. a linha de latência é impressa no monitor serial.
+
+### Resultados
+
+Em um trecho representativo do teste, o sistema registrou a seguinte sequência de latência por etapa:
+
+```text
+latencia|captura_us=120 | buffer_us=35 | extracao_us=420 | fila_us=8 | inferencia_us=53 | led_us=12 | total_us=648 | prob_latido=0.7715 | status=LATIDO
+```
+
+Esse registro mostra que a etapa de inferência tem custo computacional muito baixo, com tempo de aproximadamente 53 µs, enquanto a maior parcela da latência total do ciclo está associada à preparação do sinal para classificação, especialmente na extração de features e no processamento do buffer circular. Em outras palavras, o sistema não está limitado pela rede neural em si, mas pela aquisição e pela transformação do sinal em características representativas. A fila de envio e o acionamento do LED têm impacto reduzido e praticamente não ameaçam o comportamento em tempo real. Dessa forma, a arquitetura em tarefas do firmware se mostrou adequada para manter o fluxo contínuo de áudio, processar janelas em sequência e responder rapidamente à detecção de latido, sem que a etapa de classificação se torne o gargalo do sistema. 
+
+## 6. Evidências em vídeo
 
 Foram registrados vídeos dos testes para complementar a validação visual do comportamento do sistema:
 
 - Teste com miado: https://drive.google.com/file/d/1Bg6Q_7ANWBtRa8-uyrN5vtNorK0my4VS/view?usp=sharing
 - Teste com latido: https://drive.google.com/file/d/1Twr65I6Mfl-C8AlyrAb-sXZoEuyKPxch/view?usp=sharing
 
-## 6. Mapeamento de latência por etapa no hardware real
-
-Além da métrica isolada de inferência, o firmware passou a emitir uma linha de diagnóstico por janela para medir cada trecho do pipeline embarcado:
-
-```bash
-python src/testes/medir_latencia_pipeline.py --log serial_dump.txt
-```
-
-A linha enviada pelo ESP32 tem o formato:
-
-```text
-latencia|captura_us=120 | buffer_us=35 | extracao_us=420 | fila_us=8 | inferencia_us=53 | led_us=12 | total_us=648 | prob_latido=0.7715 | status=LATIDO
-```
-
-O script interpreta esse log, calcula média, mínima, máxima e desvio por etapa, além de resumir a distribuição de status (`NORMAL`/`LATIDO`).
-
 ## 7. Considerações finais
 
-Os testes realizados indicam que:
-
-- a inferência ONNX é rápida o suficiente para operação em tempo real;
-- a detecção depende diretamente do tipo de áudio e da robustez dos dados no ambiente;
-- a característica mais crítica não é a latência do modelo, mas a estabilidade da decisão final frente a ruído e variações acústicas;
-- o pipeline embarcado agora registra latência por etapa, permitindo comparar o custo real de captura, buffer, extração, fila, inferência e LED no hardware.
+Os testes realizados indicam que a inferência ONNX é rápida o suficiente para operação em tempo real, mas que a qualidade da detecção depende diretamente do tipo de áudio e da qualidade do ambiente em que o sistema opera. A característica mais crítica não é a latência do modelo em si, mas a estabilidade da decisão final frente a ruído, variações acústicas e pequenas flutuações na energia do sinal. Em outras palavras, o sistema demonstrou capacidade de responder rapidamente e de manter o pipeline funcional em tempo real, porém a confiabilidade da classificação continua sendo determinada mais pela natureza do sinal processado do que pela carga computacional da etapa de inferência.

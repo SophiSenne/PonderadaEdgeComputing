@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import argparse
 import json
 import re
@@ -7,8 +6,8 @@ import time
 from pathlib import Path
 
 try:
-    import serial  # type: ignore
-except ImportError:  # pragma: no cover
+    import serial  
+except ImportError:  
     serial = None
 
 STAGES = [
